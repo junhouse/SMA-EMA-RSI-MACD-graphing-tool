@@ -86,78 +86,120 @@ def tutorial():
 
 #EFFECTS: Calculate Five Day Average SMA
 def fivedayaverage(what):
-    index = 0
-    while index < len(what["Open"]):
-        if index + 5 ==  len(what["Open"]):
-            what["5daySMA"][index] = average
-            what["5daySMA"][index + 1] = average
-            what["5daySMA"][index + 2] = average
-            what["5daySMA"][index + 3] = average
-            what["5daySMA"][index + 4] = average
-            index = len(what["Open"])
-        else:
-            average = (what["Close"][index] + what["Close"][index+1] + what["Close"][index+2] + what["Close"][index+3] +what["Close"][index+4]) / 5
-            what["5daySMA"][index] = average
-            index += 1
+    numEntries = len(what["Open"]) #end of entry number
+    startPoint = 0
+    average = 0 
+    count = 0
+    sum = 0
+    period = 5
+    #we know that the very frist 5 values do not matter, give them their value
+    while (count < period):
+        sum = sum + what["Close"][startPoint + count]
+        what["5daySMA"][startPoint+count] = what["Close"][startPoint + count]
+        count = count + 1
+    #first average, and now index is 5
+    average = sum / period
+    what["5daySMA"][startPoint + count] = average #index is five, and first SMA period 5 
+    startPoint = startPoint + 1
+    while (startPoint < numEntries - period):
+        #need to update the sum
+        sum = 0
+        count = 0
+        while (count < period):
+            sum = sum + what["Close"][startPoint + count]
+            count = count + 1
+        #end of the second while loop, update the SMA5
+        average = sum / period
+        what["5daySMA"][startPoint + count] = average
+        startPoint = startPoint + 1
+
 #EFFECTS: Calculate Ten Day Average SMA
 def tendayaverage(what):
-    index = 0
-    start = 0
-    average = 0
-    while index < len(what["Open"]):
+    numEntries = len(what["Open"]) #end of entry number
+    startPoint = 0
+    average = 0 
+    count = 0
+    sum = 0
+    period = 10
+    #we know that the very frist 10 values do not matter, give them their value
+    while (count < period):
+        sum = sum + what["Close"][startPoint + count]
+        what["10daySMA"][startPoint+count] = what["Close"][startPoint + count]
+        count = count + 1
+    #first average, and now index is 10
+    average = sum / period
+    what["10daySMA"][startPoint + count] = average #index is ten, and first SMA period 10
+    startPoint = startPoint + 1
+    while (startPoint < numEntries - period):
+        #need to update the sum
+        sum = 0
         count = 0
-        if index + 11 > len(what["Open"]):
-            while count < 10: #assuming count starts from 0 to 50
-                what["10daySMA"][index + count] = average
-                count += 1
-            index = len(what["Open"])
-        else:
-            while count < 10:
-                average += what["Close"][index + count]
-                count += 1
-            average = average / 10
-            what["10daySMA"][index] = average
-            index += 1
+        while (count < period):
+            sum = sum + what["Close"][startPoint + count]
+            count = count + 1
+        #end of the second while loop, update the SMA5
+        average = sum / period
+        what["10daySMA"][startPoint + count] = average
+        startPoint = startPoint + 1
+        
 #EFFECTS: Calculate fifty Day Average SMA
 def fiftydayaverage(what):
-    index = 0
-    start = 0
-    average = 0
-    while index < len(what["Open"]):
+    numEntries = len(what["Open"]) #end of entry number
+    startPoint = 0
+    average = 0 
+    count = 0
+    sum = 0
+    period = 50
+
+    while (count < period):
+        sum = sum + what["Close"][startPoint + count]
+        what["50daySMA"][startPoint+count] = what["Close"][startPoint + count]
+        count = count + 1
+ 
+    average = sum / period
+    what["50daySMA"][startPoint + count] = average 
+    startPoint = startPoint + 1
+    while (startPoint < numEntries - period):
+        #need to update the sum
+        sum = 0
         count = 0
-        if index + 51 > len(what["Open"]):
-            while count < 50: #assuming count starts from 0 to 50
-                what["50daySMA"][index + count] = average
-                count += 1
-            index = len(what["Open"])
-        else:
-            while count < 50:
-                average += what["Close"][index + count]
-                count += 1
-            average = average / 50
-            what["50daySMA"][index] = average
-            index += 1
+        while (count < period):
+            sum = sum + what["Close"][startPoint + count]
+            count = count + 1
+        #end of the second while loop, update the SMA5
+        average = sum / period
+        what["50daySMA"][startPoint + count] = average
+        startPoint = startPoint + 1
 
 
 #EFFECTS: Calculate Hundred Day Average SMA
 def hundreddayaverage(what):
-    index = 0
-    start = 0
-    average = 0
-    while index < len(what["Open"]):
+    numEntries = len(what["Open"]) #end of entry number
+    startPoint = 0
+    average = 0 
+    count = 0
+    sum = 0
+    period = 50
+
+    while (count < period):
+        sum = sum + what["Close"][startPoint + count]
+        what["100daySMA"][startPoint+count] = what["Close"][startPoint + count]
+        count = count + 1
+   
+    average = sum / period
+    what["100daySMA"][startPoint + count] = average
+    startPoint = startPoint + 1
+    while (startPoint < numEntries - period):
+        #need to update the sum
+        sum = 0
         count = 0
-        if index + 101 > len(what["Open"]):
-            while count < 100: #assuming count starts from 0 to 50
-                what["100daySMA"][index + count] = average
-                count += 1
-            index = len(what["Open"])
-        else:
-            while count < 100:
-                average += what["Close"][index + count]
-                count += 1
-            average = average / 100
-            what["100daySMA"][index] = average
-            index += 1
+        while (count < period):
+            sum = sum + what["Close"][startPoint + count]
+            count = count + 1
+        #end of the second while loop, update the SMA5
+        average = sum / period
+        what["100daySMA"][startPoint + count] = average
+        startPoint = startPoint + 1
 
 #EFFECTS: PopUp Message
 def popupmsg(msg):
