@@ -29,6 +29,8 @@ a = f.add_subplot(111)
 stock = "S&P500"
 SMA_short_periods = 5;
 SMA_long_periods = 5;
+EMA_short_periods = 5;
+EMA_long_periods = 5;
 
 #EFFECTS: Change stock varaible to what
 def changeStock(what):
@@ -44,6 +46,19 @@ def change_Short_SMA(what):
 def change_Long_SMA(what):
     global SMA_long_periods
     SMA_long_periods = what
+
+#EFFECTS: Change EMA Short period to what
+def change_Short_EMA(what):
+    global EMA_short_periods
+    EMA_short_periods = what
+
+#EFFECTS: Change EMA Long period to what
+def change_Long_EMA(what):
+    global EMA_long_periods
+    EMA_long_periods = what
+
+
+
 #EFFECTS : Tutorial Page 
 def tutorial():
     def leavemini(what):
@@ -85,6 +100,7 @@ def tutorial():
     tut.mainloop()
 
 #EFFECTS: Calculate Five Day Average SMA
+#Simple Moving Average Period = 5days
 def fivedayaverage(what):
     numEntries = len(what["Open"]) #end of entry number
     startPoint = 0
@@ -121,14 +137,14 @@ def tendayaverage(what):
     count = 0
     sum = 0
     period = 10
-    #we know that the very frist 10 values do not matter, give them their value
+    #we know that the very frist 5 values do not matter, give them their value
     while (count < period):
         sum = sum + what["Close"][startPoint + count]
         what["10daySMA"][startPoint+count] = what["Close"][startPoint + count]
         count = count + 1
-    #first average, and now index is 10
+    #first average, and now index is 5
     average = sum / period
-    what["10daySMA"][startPoint + count] = average #index is ten, and first SMA period 10
+    what["10daySMA"][startPoint + count] = average #index is five, and first SMA period 5 
     startPoint = startPoint + 1
     while (startPoint < numEntries - period):
         #need to update the sum
@@ -141,7 +157,6 @@ def tendayaverage(what):
         average = sum / period
         what["10daySMA"][startPoint + count] = average
         startPoint = startPoint + 1
-        
 #EFFECTS: Calculate fifty Day Average SMA
 def fiftydayaverage(what):
     numEntries = len(what["Open"]) #end of entry number
@@ -150,14 +165,14 @@ def fiftydayaverage(what):
     count = 0
     sum = 0
     period = 50
-
+    #we know that the very frist 5 values do not matter, give them their value
     while (count < period):
         sum = sum + what["Close"][startPoint + count]
         what["50daySMA"][startPoint+count] = what["Close"][startPoint + count]
         count = count + 1
- 
+    #first average, and now index is 5
     average = sum / period
-    what["50daySMA"][startPoint + count] = average 
+    what["50daySMA"][startPoint + count] = average #index is five, and first SMA period 5 
     startPoint = startPoint + 1
     while (startPoint < numEntries - period):
         #need to update the sum
@@ -180,14 +195,14 @@ def hundreddayaverage(what):
     count = 0
     sum = 0
     period = 50
-
+    #we know that the very frist 5 values do not matter, give them their value
     while (count < period):
         sum = sum + what["Close"][startPoint + count]
         what["100daySMA"][startPoint+count] = what["Close"][startPoint + count]
         count = count + 1
-   
+    #first average, and now index is 5
     average = sum / period
-    what["100daySMA"][startPoint + count] = average
+    what["100daySMA"][startPoint + count] = average #index is five, and first SMA period 5 
     startPoint = startPoint + 1
     while (startPoint < numEntries - period):
         #need to update the sum
@@ -200,6 +215,31 @@ def hundreddayaverage(what):
         average = sum / period
         what["100daySMA"][startPoint + count] = average
         startPoint = startPoint + 1
+
+#EFFECTS: takes in preiod and name of col, and calculate EMA according to that period
+#and save the results to according column
+def EMA(what, period, col): #takes in pandas dataframd and integer representing period and string column name
+    numEntries = len(what["Open"]) #end of entry number
+    multiplier = (2 / (period + 1))
+    index = period
+    preEMA = 0
+    count = 0
+    sum = 0
+    #We need to calculate SMA for first "previous EMA"
+    while (count < period):
+        sum = sum + what["Close"][count]
+        what[col][count] = what["Close"][count]
+        count = count + 1
+    #Assigning first EMA value
+    preEMA = sum / period
+    what[col][index] = ((what["Close"][index] - preEMA) * multiplier) + preEMA
+    preEMA = what[col][index]
+    index = index + 1
+    #EMA values for the rest of entries
+    while (index < numEntries):
+        what[col][index] = ((what["Close"][index] - preEMA) * multiplier) + preEMA
+        preEMA = what[col][index] #update the preEMA
+        index = index + 1 #update the index
 
 #EFFECTS: PopUp Message
 def popupmsg(msg):
@@ -267,7 +307,7 @@ def animate(i):
             fivedayaverage(mydata)
             SMA5 = mydata["5daySMA"]
             SMA5 = SMA5[2700:]
-            a.plot(SMA5, color = 'blue',)
+            a.plot(SMA5, color = 'blue')
         elif SMA_short_periods == 10:
             mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             tendayaverage(mydata)
@@ -312,6 +352,70 @@ def animate(i):
             SMA100 = mydata["100daySMA"]
             SMA100 = SMA100[2700:]
             a.plot(SMA100,color = 'black')
+
+        #Checking EMA short periods
+        if EMA_short_periods == 5:
+            mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
+            EMA(mydata, 5, "5dayEMA")
+            EMA5 = mydata["5dayEMA"]
+            EMA5 = EMA5[2700:]
+            a.plot(EMA5, color = 'red')
+        elif EMA_short_periods == 10:
+            mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 10, "10dayEMA")
+            EMA10 = mydata["10dayEMA"]
+            EMA10 = EMA10[2700:]
+            a.plot(EMA10,color = 'red')
+        elif EMA_short_periods == 50:
+            mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata,50,"50dayEMA")
+            EMA50 = mydata["50dayEMA"]
+            EMA50 = EMA50[2700:]
+            a.plot(EMA50,color = 'red')
+        elif EMA_short_periods == 100:
+            mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 100, "100dayEMA")
+            EMA100 = mydata["100dayEMA"]
+            EMA100 = EMA100[2700:]
+            a.plot(EMA100,color = 'red')
+        elif EMA_short_periods == 250:
+            mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 250, "250dayEMA")
+            EMA250 = mydata["250dayEMA"]
+            EMA250 = EMA250[2700:]
+            a.plot(EMA250,color = 'red')
+
+        #Checking EMA long periods
+        if EMA_long_periods == 5:
+            mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
+            EMA(mydata, 5, "5dayEMA")
+            EMA5 = mydata["5dayEMA"]
+            EMA5 = EMA5[2700:]
+            a.plot(EMA5, color = 'purple',)
+        elif EMA_long_periods == 10:
+            mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 10, "10dayEMA")
+            EMA10 = mydata["10dayEMA"]
+            EMA10 = EMA10[2700:]
+            a.plot(EMA10,color = 'purple')
+        elif EMA_long_periods == 50:
+            mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata,50,"50dayEMA")
+            EMA50 = mydata["50dayEMA"]
+            EMA50 = EMA50[2700:]
+            a.plot(EMA50,color = 'purple')
+        elif EMA_long_periods == 100:
+            mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 100, "100dayEMA")
+            EMA100 = mydata["100dayEMA"]
+            EMA100 = EMA100[2700:]
+            a.plot(EMA100,color = 'purple')
+        elif EMA_long_periods == 250:
+            mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 250, "250dayEMA")
+            EMA250 = mydata["250dayEMA"]
+            EMA250 = EMA250[2700:]
+            a.plot(EMA250,color = 'purple')
 
         a2.plot(diff, color = 'black')
 
@@ -322,6 +426,7 @@ def animate(i):
         a0.legend(loc=0)
 
     elif stock == "TESLA":
+        
         a = plt.subplot2grid((6,4), (1,0), rowspan=4, colspan=4)
         a2 = plt.subplot2grid((6,4), (5,0), sharex=a, rowspan=1, colspan=4)
         a0 = plt.subplot2grid((6,4), (0,0), sharex=a, rowspan=1, colspan=4)
@@ -330,34 +435,31 @@ def animate(i):
         high = mydata["High"]
         low = mydata["Low"]
         diff = mydata["High"] - mydata["Low"]
-        diff = diff[:]
 
         sLength = len(mydata["Open"])
 
-
+        a.clear()
+   
+        #Checking SMA short periods
         if SMA_short_periods == 5:
             mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             fivedayaverage(mydata)
             SMA5 = mydata["5daySMA"]
-            SMA5 = SMA5[2700:]
-            a.plot(SMA5, color = 'blue',)
+            a.plot(SMA5, color = 'blue')
         elif SMA_short_periods == 10:
             mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             tendayaverage(mydata)
             SMA10 = mydata["10daySMA"]
-            SMA10 = SMA10[2700:]
             a.plot(SMA10,color = 'blue')
         elif SMA_short_periods == 50:
             mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             fiftydayaverage(mydata)
             SMA50 = mydata["50daySMA"]
-            SMA50 = SMA50[2700:]
             a.plot(SMA50,color = 'blue')
         elif SMA_short_periods == 100:
             mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             hundreddayaverage(mydata)
             SMA100 = mydata["100daySMA"]
-            SMA100 = SMA100[2700:]
             a.plot(SMA100,color = 'blue')
 
         #Checking SMA long periods
@@ -365,32 +467,79 @@ def animate(i):
             mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             fivedayaverage(mydata)
             SMA5 = mydata["5daySMA"]
-            SMA5 = SMA5[2700:]
             a.plot(SMA5, color = 'black',)
         elif SMA_long_periods == 10:
             mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             tendayaverage(mydata)
             SMA10 = mydata["10daySMA"]
-            SMA10 = SMA10[2700:]
             a.plot(SMA10,color = 'black')
         elif SMA_long_periods == 50:
             mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             fiftydayaverage(mydata)
             SMA50 = mydata["50daySMA"]
-            SMA50 = SMA50[2700:]
             a.plot(SMA50,color = 'black')
         elif SMA_long_periods == 100:
             mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             hundreddayaverage(mydata)
             SMA100 = mydata["100daySMA"]
-            SMA100 = SMA100[2700:]
             a.plot(SMA100,color = 'black')
 
-        a.clear()
-        a.plot(high, color = 'green', marker = 'o')
-        a.plot(low, color = 'red', marker = 'o')
+        #Checking EMA short periods
+        if EMA_short_periods == 5:
+            mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
+            EMA(mydata, 5, "5dayEMA")
+            EMA5 = mydata["5dayEMA"]
+            a.plot(EMA5, color = 'red')
+        elif EMA_short_periods == 10:
+            mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 10, "10dayEMA")
+            EMA10 = mydata["10dayEMA"]
+            a.plot(EMA10,color = 'red')
+        elif EMA_short_periods == 50:
+            mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata,50,"50dayEMA")
+            EMA50 = mydata["50dayEMA"]
+            a.plot(EMA50,color = 'red')
+        elif EMA_short_periods == 100:
+            mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 100, "100dayEMA")
+            EMA100 = mydata["100dayEMA"]
+            a.plot(EMA100,color = 'red')
+        elif EMA_short_periods == 250:
+            mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 250, "250dayEMA")
+            EMA250 = mydata["250dayEMA"]
+            a.plot(EMA250,color = 'red')
+
+        #Checking EMA long periods
+        if EMA_long_periods == 5:
+            mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
+            EMA(mydata, 5, "5dayEMA")
+            EMA5 = mydata["5dayEMA"]
+            a.plot(EMA5, color = 'purple',)
+        elif EMA_long_periods == 10:
+            mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 10, "10dayEMA")
+            EMA10 = mydata["10dayEMA"]
+            a.plot(EMA10,color = 'purple')
+        elif EMA_long_periods == 50:
+            mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata,50,"50dayEMA")
+            EMA50 = mydata["50dayEMA"]
+            a.plot(EMA50,color = 'purple')
+        elif EMA_long_periods == 100:
+            mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 100, "100dayEMA")
+            EMA100 = mydata["100dayEMA"]
+            a.plot(EMA100,color = 'purple')
+        elif EMA_long_periods == 250:
+            mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 250, "250dayEMA")
+            EMA250 = mydata["250dayEMA"]
+            a.plot(EMA250,color = 'purple')
+
         a2.plot(diff, color = 'black')
-        #fix legend issue
+
         title = "TESLA Highs, and Lows data graph. Current High:" + str(high[-1]) + "Current Low:" + str(low[-1])
         a0.set_title(title)
         a2.set_title("Difference between High and Low")
@@ -405,34 +554,32 @@ def animate(i):
         mydata = Quandl.get("GOOG/NASDAQ_FB")
         high = mydata["High"]
         low = mydata["Low"]
-
         diff = mydata["High"] - mydata["Low"]
-        diff = diff[:]
 
         sLength = len(mydata["Open"])
+
+        a.clear()
+   
+        #Checking SMA short periods
         if SMA_short_periods == 5:
             mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             fivedayaverage(mydata)
             SMA5 = mydata["5daySMA"]
-            SMA5 = SMA5[2700:]
-            a.plot(SMA5, color = 'blue',)
+            a.plot(SMA5, color = 'blue')
         elif SMA_short_periods == 10:
             mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             tendayaverage(mydata)
             SMA10 = mydata["10daySMA"]
-            SMA10 = SMA10[2700:]
             a.plot(SMA10,color = 'blue')
         elif SMA_short_periods == 50:
             mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             fiftydayaverage(mydata)
             SMA50 = mydata["50daySMA"]
-            SMA50 = SMA50[2700:]
             a.plot(SMA50,color = 'blue')
         elif SMA_short_periods == 100:
             mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             hundreddayaverage(mydata)
             SMA100 = mydata["100daySMA"]
-            SMA100 = SMA100[2700:]
             a.plot(SMA100,color = 'blue')
 
         #Checking SMA long periods
@@ -440,40 +587,85 @@ def animate(i):
             mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             fivedayaverage(mydata)
             SMA5 = mydata["5daySMA"]
-            SMA5 = SMA5[2700:]
             a.plot(SMA5, color = 'black',)
         elif SMA_long_periods == 10:
             mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             tendayaverage(mydata)
             SMA10 = mydata["10daySMA"]
-            SMA10 = SMA10[2700:]
             a.plot(SMA10,color = 'black')
         elif SMA_long_periods == 50:
             mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             fiftydayaverage(mydata)
             SMA50 = mydata["50daySMA"]
-            SMA50 = SMA50[2700:]
             a.plot(SMA50,color = 'black')
         elif SMA_long_periods == 100:
             mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             hundreddayaverage(mydata)
             SMA100 = mydata["100daySMA"]
-            SMA100 = SMA100[2700:]
             a.plot(SMA100,color = 'black')
 
-        a.clear()
-        a.plot(high, color = 'green', marker = 'o')
-        a.plot(low, color = 'red', marker = 'o')
-       
+        #Checking EMA short periods
+        if EMA_short_periods == 5:
+            mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
+            EMA(mydata, 5, "5dayEMA")
+            EMA5 = mydata["5dayEMA"]
+            a.plot(EMA5, color = 'red')
+        elif EMA_short_periods == 10:
+            mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 10, "10dayEMA")
+            EMA10 = mydata["10dayEMA"]
+            a.plot(EMA10,color = 'red')
+        elif EMA_short_periods == 50:
+            mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata,50,"50dayEMA")
+            EMA50 = mydata["50dayEMA"]
+            a.plot(EMA50,color = 'red')
+        elif EMA_short_periods == 100:
+            mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 100, "100dayEMA")
+            EMA100 = mydata["100dayEMA"]
+            a.plot(EMA100,color = 'red')
+        elif EMA_short_periods == 250:
+            mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 250, "250dayEMA")
+            EMA250 = mydata["250dayEMA"]
+            a.plot(EMA250,color = 'red')
+
+        #Checking EMA long periods
+        if EMA_long_periods == 5:
+            mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
+            EMA(mydata, 5, "5dayEMA")
+            EMA5 = mydata["5dayEMA"]
+            a.plot(EMA5, color = 'purple',)
+        elif EMA_long_periods == 10:
+            mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 10, "10dayEMA")
+            EMA10 = mydata["10dayEMA"]
+            a.plot(EMA10,color = 'purple')
+        elif EMA_long_periods == 50:
+            mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata,50,"50dayEMA")
+            EMA50 = mydata["50dayEMA"]
+            a.plot(EMA50,color = 'purple')
+        elif EMA_long_periods == 100:
+            mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 100, "100dayEMA")
+            EMA100 = mydata["100dayEMA"]
+            a.plot(EMA100,color = 'purple')
+        elif EMA_long_periods == 250:
+            mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 250, "250dayEMA")
+            EMA250 = mydata["250dayEMA"]
+            a.plot(EMA250,color = 'purple')
+
         a2.plot(diff, color = 'black')
-        #fix legend issue
-        title = "Facebook Inc. Highs, and Lows data graph. Current High:" + str(high[-1]) + "Current Low:" + str(low[-1])
+
+        title = "FACEBOOK Highs, and Lows data graph. Current High:" + str(high[-1]) + "Current Low:" + str(low[-1])
         a0.set_title(title)
         a2.set_title("Difference between High and Low")
         a.legend(loc=0)
         a0.legend(loc=0)
-
-
+       
     elif stock == "YAHOO":
         a = plt.subplot2grid((6,4), (1,0), rowspan=4, colspan=4)
         a2 = plt.subplot2grid((6,4), (5,0), sharex=a, rowspan=1, colspan=4)
@@ -483,32 +675,31 @@ def animate(i):
         high = mydata["High"]
         low = mydata["Low"]
         diff = mydata["High"] - mydata["Low"]
-        diff = diff[:]
 
         sLength = len(mydata["Open"])
+
+        a.clear()
+   
+        #Checking SMA short periods
         if SMA_short_periods == 5:
             mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             fivedayaverage(mydata)
             SMA5 = mydata["5daySMA"]
-            SMA5 = SMA5[2700:]
-            a.plot(SMA5, color = 'blue',)
+            a.plot(SMA5, color = 'blue')
         elif SMA_short_periods == 10:
             mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             tendayaverage(mydata)
             SMA10 = mydata["10daySMA"]
-            SMA10 = SMA10[2700:]
             a.plot(SMA10,color = 'blue')
         elif SMA_short_periods == 50:
             mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             fiftydayaverage(mydata)
             SMA50 = mydata["50daySMA"]
-            SMA50 = SMA50[2700:]
             a.plot(SMA50,color = 'blue')
         elif SMA_short_periods == 100:
             mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             hundreddayaverage(mydata)
             SMA100 = mydata["100daySMA"]
-            SMA100 = SMA100[2700:]
             a.plot(SMA100,color = 'blue')
 
         #Checking SMA long periods
@@ -516,72 +707,119 @@ def animate(i):
             mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             fivedayaverage(mydata)
             SMA5 = mydata["5daySMA"]
-            SMA5 = SMA5[2700:]
             a.plot(SMA5, color = 'black',)
         elif SMA_long_periods == 10:
             mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             tendayaverage(mydata)
             SMA10 = mydata["10daySMA"]
-            SMA10 = SMA10[2700:]
             a.plot(SMA10,color = 'black')
         elif SMA_long_periods == 50:
             mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             fiftydayaverage(mydata)
             SMA50 = mydata["50daySMA"]
-            SMA50 = SMA50[2700:]
             a.plot(SMA50,color = 'black')
         elif SMA_long_periods == 100:
             mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             hundreddayaverage(mydata)
             SMA100 = mydata["100daySMA"]
-            SMA100 = SMA100[2700:]
             a.plot(SMA100,color = 'black')
 
-        a.clear()
-        a.plot(high, color = 'green', marker = 'o')
-        a.plot(low, color = 'red', marker = 'o')
-        
+        #Checking EMA short periods
+        if EMA_short_periods == 5:
+            mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
+            EMA(mydata, 5, "5dayEMA")
+            EMA5 = mydata["5dayEMA"]
+            a.plot(EMA5, color = 'red')
+        elif EMA_short_periods == 10:
+            mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 10, "10dayEMA")
+            EMA10 = mydata["10dayEMA"]
+            a.plot(EMA10,color = 'red')
+        elif EMA_short_periods == 50:
+            mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata,50,"50dayEMA")
+            EMA50 = mydata["50dayEMA"]
+            a.plot(EMA50,color = 'red')
+        elif EMA_short_periods == 100:
+            mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 100, "100dayEMA")
+            EMA100 = mydata["100dayEMA"]
+            a.plot(EMA100,color = 'red')
+        elif EMA_short_periods == 250:
+            mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 250, "250dayEMA")
+            EMA250 = mydata["250dayEMA"]
+            a.plot(EMA250,color = 'red')
+
+        #Checking EMA long periods
+        if EMA_long_periods == 5:
+            mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
+            EMA(mydata, 5, "5dayEMA")
+            EMA5 = mydata["5dayEMA"]
+            a.plot(EMA5, color = 'purple',)
+        elif EMA_long_periods == 10:
+            mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 10, "10dayEMA")
+            EMA10 = mydata["10dayEMA"]
+            a.plot(EMA10,color = 'purple')
+        elif EMA_long_periods == 50:
+            mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata,50,"50dayEMA")
+            EMA50 = mydata["50dayEMA"]
+            a.plot(EMA50,color = 'purple')
+        elif EMA_long_periods == 100:
+            mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 100, "100dayEMA")
+            EMA100 = mydata["100dayEMA"]
+            a.plot(EMA100,color = 'purple')
+        elif EMA_long_periods == 250:
+            mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 250, "250dayEMA")
+            EMA250 = mydata["250dayEMA"]
+            a.plot(EMA250,color = 'purple')
+
         a2.plot(diff, color = 'black')
-        title = "YAHOO Inc Highs, and Lows data graph. Current High:" + str(high[-1]) + "Current Low:" + str(low[-1])
+
+        title = "YAHOO Highs, and Lows data graph. Current High:" + str(high[-1]) + "Current Low:" + str(low[-1])
         a0.set_title(title)
         a2.set_title("Difference between High and Low")
         a.legend(loc=0)
         a0.legend(loc=0)
-
+       
     elif stock == "APPLE":
         a = plt.subplot2grid((6,4), (1,0), rowspan=4, colspan=4)
         a2 = plt.subplot2grid((6,4), (5,0), sharex=a, rowspan=1, colspan=4)
         a0 = plt.subplot2grid((6,4), (0,0), sharex=a, rowspan=1, colspan=4)
+
         mydata = Quandl.get("GOOG/NASDAQ_AAPL")
         high = mydata["High"]
         low = mydata["Low"]
         diff = mydata["High"] - mydata["Low"]
-        diff = diff[:]
 
         sLength = len(mydata["Open"])
+
+        a.clear()
+   
+        #Checking SMA short periods
         if SMA_short_periods == 5:
             mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             fivedayaverage(mydata)
             SMA5 = mydata["5daySMA"]
-            SMA5 = SMA5[2700:]
-            a.plot(SMA5, color = 'blue',)
+            a.plot(SMA5, color = 'blue')
         elif SMA_short_periods == 10:
             mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             tendayaverage(mydata)
             SMA10 = mydata["10daySMA"]
-            SMA10 = SMA10[2700:]
             a.plot(SMA10,color = 'blue')
         elif SMA_short_periods == 50:
             mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             fiftydayaverage(mydata)
             SMA50 = mydata["50daySMA"]
-            SMA50 = SMA50[2700:]
             a.plot(SMA50,color = 'blue')
         elif SMA_short_periods == 100:
             mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             hundreddayaverage(mydata)
             SMA100 = mydata["100daySMA"]
-            SMA100 = SMA100[2700:]
             a.plot(SMA100,color = 'blue')
 
         #Checking SMA long periods
@@ -589,41 +827,85 @@ def animate(i):
             mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             fivedayaverage(mydata)
             SMA5 = mydata["5daySMA"]
-            SMA5 = SMA5[2700:]
             a.plot(SMA5, color = 'black',)
         elif SMA_long_periods == 10:
             mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             tendayaverage(mydata)
             SMA10 = mydata["10daySMA"]
-            SMA10 = SMA10[2700:]
             a.plot(SMA10,color = 'black')
         elif SMA_long_periods == 50:
             mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             fiftydayaverage(mydata)
             SMA50 = mydata["50daySMA"]
-            SMA50 = SMA50[2700:]
             a.plot(SMA50,color = 'black')
         elif SMA_long_periods == 100:
             mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             hundreddayaverage(mydata)
             SMA100 = mydata["100daySMA"]
-            SMA100 = SMA100[2700:]
             a.plot(SMA100,color = 'black')
 
-        a.clear()
-        a.plot(high, color = 'green', marker = 'o')
-        a.plot(low, color = 'red', marker = 'o')
-     
+        #Checking EMA short periods
+        if EMA_short_periods == 5:
+            mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
+            EMA(mydata, 5, "5dayEMA")
+            EMA5 = mydata["5dayEMA"]
+            a.plot(EMA5, color = 'red')
+        elif EMA_short_periods == 10:
+            mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 10, "10dayEMA")
+            EMA10 = mydata["10dayEMA"]
+            a.plot(EMA10,color = 'red')
+        elif EMA_short_periods == 50:
+            mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata,50,"50dayEMA")
+            EMA50 = mydata["50dayEMA"]
+            a.plot(EMA50,color = 'red')
+        elif EMA_short_periods == 100:
+            mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 100, "100dayEMA")
+            EMA100 = mydata["100dayEMA"]
+            a.plot(EMA100,color = 'red')
+        elif EMA_short_periods == 250:
+            mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 250, "250dayEMA")
+            EMA250 = mydata["250dayEMA"]
+            a.plot(EMA250,color = 'red')
+
+        #Checking EMA long periods
+        if EMA_long_periods == 5:
+            mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
+            EMA(mydata, 5, "5dayEMA")
+            EMA5 = mydata["5dayEMA"]
+            a.plot(EMA5, color = 'purple',)
+        elif EMA_long_periods == 10:
+            mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 10, "10dayEMA")
+            EMA10 = mydata["10dayEMA"]
+            a.plot(EMA10,color = 'purple')
+        elif EMA_long_periods == 50:
+            mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata,50,"50dayEMA")
+            EMA50 = mydata["50dayEMA"]
+            a.plot(EMA50,color = 'purple')
+        elif EMA_long_periods == 100:
+            mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 100, "100dayEMA")
+            EMA100 = mydata["100dayEMA"]
+            a.plot(EMA100,color = 'purple')
+        elif EMA_long_periods == 250:
+            mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 250, "250dayEMA")
+            EMA250 = mydata["250dayEMA"]
+            a.plot(EMA250,color = 'purple')
+
         a2.plot(diff, color = 'black')
 
-        title = "APPLE Inc. Highs, and Lows data graph. Current High:" + str(high[-1]) + "Current Low:" + str(low[-1])
+        title = "APPLE Highs, and Lows data graph. Current High:" + str(high[-1]) + "Current Low:" + str(low[-1])
         a0.set_title(title)
         a2.set_title("Difference between High and Low")
         a.legend(loc=0)
         a0.legend(loc=0)
-
-
-
+        
 class MenuBarProgram(tk.Tk):
 
     def __init__(self, *args, **kwargs):
@@ -671,6 +953,32 @@ class MenuBarProgram(tk.Tk):
         dataLongSMA.add_command ( label="100 Days",
                                   command=lambda: change_Long_SMA(100) )
         menubar.add_cascade(label = "SMA Long-Term Periods", menu = dataLongSMA)
+
+        dataShortEMA = tk.Menu(menubar, tearoff=1)
+        dataShortEMA.add_command ( label="5 Days",
+                                  command=lambda: change_Short_EMA(5) )
+        dataShortEMA.add_command ( label="10 Days",
+                                  command=lambda: change_Short_EMA(10))
+        dataShortEMA.add_command ( label="50 Days",
+                                  command=lambda: change_Short_EMA(50) )
+        dataShortEMA.add_command ( label="100 Days",
+                                  command=lambda: change_Short_EMA(100) )
+        dataShortEMA.add_command ( label="250 Days",
+                                  command=lambda: change_Short_EMA(250) )
+        menubar.add_cascade(label = "EMA Short-Term Periods", menu = dataShortEMA)
+
+        dataLongEMA = tk.Menu(menubar, tearoff=1)
+        dataLongEMA.add_command ( label="5 Days",
+                                  command=lambda: change_Long_EMA(5) )
+        dataLongEMA.add_command ( label="10 Days",
+                                  command=lambda: change_Long_EMA(10))
+        dataLongEMA.add_command ( label="50 Days",
+                                  command=lambda: change_Long_EMA(50) )
+        dataLongEMA.add_command ( label="100 Days",
+                                  command=lambda: change_Long_EMA(100) )
+        dataLongEMA.add_command ( label="250 Days",
+                                  command=lambda: change_Long_EMA(250) )
+        menubar.add_cascade(label = "EMA Long-Term Periods", menu = dataLongEMA)
 
 
 
