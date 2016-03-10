@@ -14,6 +14,14 @@ import urllib
 import pandas as pd
 import numpy as np
 import Quandl
+
+import matplotlib.colors as colors
+import matplotlib.finance as finance
+import matplotlib.dates as mdates
+import matplotlib.ticker as mticker
+import matplotlib.mlab as mlab
+import matplotlib.font_manager as font_manager
+
 from matplotlib import pyplot as plt
 
 #initialize global variables
@@ -241,6 +249,85 @@ def EMA(what, period, col): #takes in pandas dataframd and integer representing 
         preEMA = what[col][index] #update the preEMA
         index = index + 1 #update the index
 
+def nine_day_MACD(what, period, col): #takes in pandas dataframd and integer representing period and string column name
+    numEntries = len(what["Open"]) #end of entry number
+    multiplier = (2 / (period + 1))
+    index = period
+    preEMA = 0
+    count = 0
+    sum = 0
+    #We need to calculate SMA for first "previous EMA"
+    while (count < period):
+        sum = sum + what["MACD"][count]
+        what[col][count] = what["MACD"][count]
+        count = count + 1
+    #Assigning first EMA value
+    preEMA = sum / period
+    what[col][index] = ((what["MACD"][index] - preEMA) * multiplier) + preEMA
+    preEMA = what[col][index]
+    index = index + 1
+    #EMA values for the rest of entries
+    while (index < numEntries):
+        what[col][index] = ((what["MACD"][index] - preEMA) * multiplier) + preEMA
+        preEMA = what[col][index] #update the preEMA
+        index = index + 1 #update the index        
+
+#MACD Calculation function
+def MACD(what):
+    #Create EMA 12 day and 26 day
+    what["26dayEMA"] = pd.Series(np.random.randn(len(what["Open"])), index=what.index)
+    what["12dayEMA"] = pd.Series(np.random.randn(len(what["Open"])), index=what.index)
+    what["signal"] = pd.Series(np.random.randn(len(what["Open"])), index=what.index)
+    EMA(what, 26, "26dayEMA")
+    EMA(what, 12, "12dayEMA")
+    
+    #MACD Line: (12-day EMA - 26-day EMA)
+    what["MACD"] = pd.Series(np.random.randn(len(what["Open"])), index=what.index)
+    what["MACD"] = what["12dayEMA"] - what["26dayEMA"]
+    nine_day_MACD(what, 9, "signal")
+
+#RSI calc
+def RSICalc(what):
+    #we are going to calculate period = 14 following the recipe by J. Welles Wilder, Jr.
+    #gain if diff is bigger than 0, loss if diff is less than 0
+    #create an array of size 14
+    numEntries = len(what["Open"])
+    diff = pd.DataFrame.diff(what["Close"])
+    gain = np.array([])
+    loss = np.array([])
+    index = 0 
+    diff[index] = 0
+    while (index < 14):
+        if(diff[index] >= 0):
+            gain = np.insert(gain,0,diff[index])
+           
+        elif(diff[index] < 0):
+            loss = np.insert(loss,0,diff[index])
+        what["RSI"][index] = 0
+        index = index + 1
+    #Ready to calculate RS and RSI
+   
+    gain_avg = np.sum(gain) / 14
+
+    loss_avg = abs(np.sum(loss)) / 14
+
+    RS = gain_avg / loss_avg
+    RSI = 100 - (100/(1+RS))
+
+    what["RSI"][index] = RSI
+    while (index < numEntries):
+        #first we need to delete the first added number to each Gain and Loss
+        if(diff[index] >= 0):
+            gain_avg = ((13 * gain_avg) + diff[index]) / 14
+            loss_avg = ((13 * loss_avg))/14
+        elif(diff[index] < 0):
+            loss_avg = abs(((13 * loss_avg) + abs(diff[index])) / 14)
+            gain_avg = ((13 * gain_avg)) / 14
+        RS = gain_avg / loss_avg
+        RSI = 100 - (100/(1+RS))
+        what["RSI"][index] = RSI
+        index = index + 1
+
 #EFFECTS: PopUp Message
 def popupmsg(msg):
     popup = tk.Tk()
@@ -263,8 +350,8 @@ def animate(i):
     global stock
 
     if stock == "S&P500":
-        a = plt.subplot2grid((6,4), (0,0), rowspan = 5, colspan = 4)
-        a2 = plt.subplot2grid((6,4), (5,0), rowspan = 1, colspan = 4, sharex = a) #share x axis with a
+        a = plt.subplot2grid((10,4), (1,0), rowspan=6, colspan=4)
+        a2 = plt.subplot2grid((10,4), (8,0), sharex=a, rowspan=2, colspan=4)
         mydata = Quandl.get("YAHOO/INDEX_GSPC")
         high = mydata["High"]
         low = mydata["Low"]
@@ -285,21 +372,29 @@ def animate(i):
    
     elif stock == "GOOGLE":
         
-        a = plt.subplot2grid((6,4), (1,0), rowspan=4, colspan=4)
-        a2 = plt.subplot2grid((6,4), (5,0), sharex=a, rowspan=1, colspan=4)
-        a0 = plt.subplot2grid((6,4), (0,0), sharex=a, rowspan=1, colspan=4)
+        a = plt.subplot2grid((16,4), (6,0), rowspan=7, colspan=4)
+        a2 = plt.subplot2grid((16,4), (14,0), sharex=a, rowspan=2, colspan=4)
+        a0 = plt.subplot2grid((16,4), (0,0), sharex=a, rowspan=2, colspan=4)
+        a3 = plt.subplot2grid((16,4), (3,0), sharex=a, rowspan=2, colspan=4) #plotting MACD
 
-        mydata = Quandl.get("GOOG/NASDAQ_GOOGL")
+        mydata = Quandl.get("GOOG/NASDAQ_GOOG")
+        sLength = len(mydata["Open"])
+        mydata["RSI"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+        
+
         high = mydata["High"]
         low = mydata["Low"]
+        volume = (mydata["Volume"] * mydata["Close"]) / 1e6 #Dollar Volume in Millions
+        volume = volume[2700:]
         high = high[2700:]
         low = low[2700:]
         diff = mydata["High"] - mydata["Low"]
         diff = diff[2700:]
 
-        sLength = len(mydata["Open"])
-
         a.clear()
+        a2.clear()
+        a3.clear()
+        a0.clear()
    
         #Checking SMA short periods
         if SMA_short_periods == 5:
@@ -307,7 +402,7 @@ def animate(i):
             fivedayaverage(mydata)
             SMA5 = mydata["5daySMA"]
             SMA5 = SMA5[2700:]
-            a.plot(SMA5, color = 'blue')
+            a.plot(SMA5, color = 'blue',lw = 2)
         elif SMA_short_periods == 10:
             mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             tendayaverage(mydata)
@@ -345,7 +440,7 @@ def animate(i):
             fiftydayaverage(mydata)
             SMA50 = mydata["50daySMA"]
             SMA50 = SMA50[2700:]
-            a.plot(SMA50,color = 'black')
+            a.plot(SMA50,color = 'black',lw = 2)
         elif SMA_long_periods == 100:
             mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             hundreddayaverage(mydata)
@@ -417,49 +512,92 @@ def animate(i):
             EMA250 = EMA250[2700:]
             a.plot(EMA250,color = 'purple')
 
-        a2.plot(diff, color = 'black')
 
-        title = "GOOGLE Highs, and Lows data graph. Current High:" + str(high[-1]) + "Current Low:" + str(low[-1])
-        a0.set_title(title)
+
+        aa = a.twinx()
+        max = volume.max()
+        aa.set_ylim(0, 5*max)
+        aa.set_yticks([])
+        aa.fill_between(volume.index, volume, 0, facecolor = 'black', edgecolor='blue')
+
+        MACD(mydata)
+        a3.plot(mydata["MACD"][2700:], color = 'black')
+        a3.plot(mydata["signal"][2700:], color = 'red')
+
+
+        RSICalc(mydata)
+        RSI = mydata["RSI"]
+        RSI = RSI[2700:]
+        a0.set_ylim(0, 100)
+        a0.plot(RSI, color = 'brown')
+        a0.axhline(70, color='black')
+        a0.axhline(30, color= 'black')
+        a0.text(0.6, 0.9, '>70 = overbought', va='top', transform=a0.transAxes, fontsize=9)
+        a0.text(0.6, 0.1, '<30 = oversold', transform=a0.transAxes, fontsize=9)
+
+        a2.plot(diff, color = 'black')
+        a2.fill_between(diff.index, diff, 0,  facecolor='green', edgecolor='black')
+
+        title = "Google inc. Current High: " + str(high[-1]) + " Current Low: " + str(low[-1])
+        a.set_title(title)
+        a0_title = "Current Relative Strength Index is: " + str(RSI[-1])
+        a0.set_title(a0_title)
         a2.set_title("Difference between High and Low")
+        a3.set_title("MACD")
         a.legend(loc=0)
         a0.legend(loc=0)
+        a3.legend(loc=0)
+       
 
     elif stock == "TESLA":
-        
-        a = plt.subplot2grid((6,4), (1,0), rowspan=4, colspan=4)
-        a2 = plt.subplot2grid((6,4), (5,0), sharex=a, rowspan=1, colspan=4)
-        a0 = plt.subplot2grid((6,4), (0,0), sharex=a, rowspan=1, colspan=4)
+        a = plt.subplot2grid((16,4), (6,0), rowspan=7, colspan=4)
+        a2 = plt.subplot2grid((16,4), (14,0), sharex=a, rowspan=2, colspan=4)
+        a0 = plt.subplot2grid((16,4), (0,0), sharex=a, rowspan=2, colspan=4)
+        a3 = plt.subplot2grid((16,4), (3,0), sharex=a, rowspan=2, colspan=4) #plotting MACD
 
-        mydata = Quandl.get("YAHOO/TSLA")
+        mydata =  Quandl.get("YAHOO/TSLA")
+        sLength = len(mydata["Open"])
+        mydata["RSI"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+        
+
         high = mydata["High"]
         low = mydata["Low"]
+        volume = (mydata["Volume"] * mydata["Close"]) / 1e6 #Dollar Volume in Millions
+        volume = volume[2500:]
+        high = high[2500:]
+        low = low[2500:]
         diff = mydata["High"] - mydata["Low"]
-
-        sLength = len(mydata["Open"])
+        diff = diff[2500:]
 
         a.clear()
+        a2.clear()
+        a3.clear()
+        a0.clear()
    
         #Checking SMA short periods
         if SMA_short_periods == 5:
             mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             fivedayaverage(mydata)
             SMA5 = mydata["5daySMA"]
-            a.plot(SMA5, color = 'blue')
+            SMA5 = SMA5[2500:]
+            a.plot(SMA5, color = 'blue',lw = 2)
         elif SMA_short_periods == 10:
             mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             tendayaverage(mydata)
             SMA10 = mydata["10daySMA"]
+            SMA10 = SMA10[2500:]
             a.plot(SMA10,color = 'blue')
         elif SMA_short_periods == 50:
             mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             fiftydayaverage(mydata)
             SMA50 = mydata["50daySMA"]
+            SMA50 = SMA50[2500:]
             a.plot(SMA50,color = 'blue')
         elif SMA_short_periods == 100:
             mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             hundreddayaverage(mydata)
             SMA100 = mydata["100daySMA"]
+            SMA100 = SMA100[2500:]
             a.plot(SMA100,color = 'blue')
 
         #Checking SMA long periods
@@ -467,21 +605,25 @@ def animate(i):
             mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             fivedayaverage(mydata)
             SMA5 = mydata["5daySMA"]
+            SMA5 = SMA5[2500:]
             a.plot(SMA5, color = 'black',)
         elif SMA_long_periods == 10:
             mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             tendayaverage(mydata)
             SMA10 = mydata["10daySMA"]
+            SMA10 = SMA10[2500:]
             a.plot(SMA10,color = 'black')
         elif SMA_long_periods == 50:
             mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             fiftydayaverage(mydata)
             SMA50 = mydata["50daySMA"]
-            a.plot(SMA50,color = 'black')
+            SMA50 = SMA50[2500:]
+            a.plot(SMA50,color = 'black',lw = 2)
         elif SMA_long_periods == 100:
             mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             hundreddayaverage(mydata)
             SMA100 = mydata["100daySMA"]
+            SMA100 = SMA100[2500:]
             a.plot(SMA100,color = 'black')
 
         #Checking EMA short periods
@@ -489,26 +631,31 @@ def animate(i):
             mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             EMA(mydata, 5, "5dayEMA")
             EMA5 = mydata["5dayEMA"]
+            EMA5 = EMA5[2500:]
             a.plot(EMA5, color = 'red')
         elif EMA_short_periods == 10:
             mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 10, "10dayEMA")
             EMA10 = mydata["10dayEMA"]
+            EMA10 = EMA10[2500:]
             a.plot(EMA10,color = 'red')
         elif EMA_short_periods == 50:
             mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata,50,"50dayEMA")
             EMA50 = mydata["50dayEMA"]
+            EMA50 = EMA50[2500:]
             a.plot(EMA50,color = 'red')
         elif EMA_short_periods == 100:
             mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 100, "100dayEMA")
             EMA100 = mydata["100dayEMA"]
+            EMA100 = EMA100[2500:]
             a.plot(EMA100,color = 'red')
         elif EMA_short_periods == 250:
             mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 250, "250dayEMA")
             EMA250 = mydata["250dayEMA"]
+            EMA250 = EMA250[2500:]
             a.plot(EMA250,color = 'red')
 
         #Checking EMA long periods
@@ -516,70 +663,297 @@ def animate(i):
             mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             EMA(mydata, 5, "5dayEMA")
             EMA5 = mydata["5dayEMA"]
+            EMA5 = EMA5[2500:]
             a.plot(EMA5, color = 'purple',)
         elif EMA_long_periods == 10:
             mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 10, "10dayEMA")
             EMA10 = mydata["10dayEMA"]
+            EMA10 = EMA10[2500:]
             a.plot(EMA10,color = 'purple')
         elif EMA_long_periods == 50:
             mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata,50,"50dayEMA")
             EMA50 = mydata["50dayEMA"]
+            EMA50 = EMA50[2500:]
             a.plot(EMA50,color = 'purple')
         elif EMA_long_periods == 100:
             mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 100, "100dayEMA")
             EMA100 = mydata["100dayEMA"]
+            EMA100 = EMA100[2500:]
             a.plot(EMA100,color = 'purple')
         elif EMA_long_periods == 250:
             mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 250, "250dayEMA")
             EMA250 = mydata["250dayEMA"]
+            EMA250 = EMA250[2500:]
             a.plot(EMA250,color = 'purple')
 
-        a2.plot(diff, color = 'black')
 
-        title = "TESLA Highs, and Lows data graph. Current High:" + str(high[-1]) + "Current Low:" + str(low[-1])
-        a0.set_title(title)
+
+        aa = a.twinx()
+        max = volume.max()
+        aa.set_ylim(0, 5*max)
+        aa.set_yticks([])
+        aa.fill_between(volume.index, volume, 0, facecolor = 'black', edgecolor='blue')
+
+        MACD(mydata)
+        a3.plot(mydata["MACD"][2500:], color = 'black')
+        a3.plot(mydata["signal"][2500:], color = 'red')
+
+
+        RSICalc(mydata)
+        RSI = mydata["RSI"]
+        RSI = RSI[2500:]
+        a0.set_ylim(0, 100)
+        a0.plot(RSI, color = 'brown')
+        a0.axhline(70, color='black')
+        a0.axhline(30, color= 'black')
+        a0.text(0.6, 0.9, '>70 = overbought', va='top', transform=a0.transAxes, fontsize=9)
+        a0.text(0.6, 0.1, '<30 = oversold', transform=a0.transAxes, fontsize=9)
+
+        a2.plot(diff, color = 'black')
+        a2.fill_between(diff.index, diff, 0,  facecolor='green', edgecolor='black')
+
+        title = "TESLA inc. Current High: " + str(high[-1]) + " Current Low: " + str(low[-1])
+        a.set_title(title)
+        a0_title = "Current Relative Strength Index is: " + str(RSI[-1])
+        a0.set_title(a0_title)
         a2.set_title("Difference between High and Low")
+        a3.set_title("MACD")
         a.legend(loc=0)
         a0.legend(loc=0)
+        a3.legend(loc=0)
+
+    elif stock == "YAHOO":
+
+        a = plt.subplot2grid((16,4), (6,0), rowspan=7, colspan=4)
+        a2 = plt.subplot2grid((16,4), (14,0), sharex=a, rowspan=2, colspan=4)
+        a0 = plt.subplot2grid((16,4), (0,0), sharex=a, rowspan=2, colspan=4)
+        a3 = plt.subplot2grid((16,4), (3,0), sharex=a, rowspan=2, colspan=4) #plotting MACD
+
+        mydata =  Quandl.get("YAHOO/YHOO")
+        sLength = len(mydata["Open"])
+        mydata["RSI"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+        
+
+        high = mydata["High"]
+        low = mydata["Low"]
+        volume = (mydata["Volume"] * mydata["Close"]) / 1e6 #Dollar Volume in Millions
+        volume = volume[500:]
+        high = high[500:]
+        low = low[500:]
+        diff = mydata["High"] - mydata["Low"]
+        diff = diff[500:]
+
+        a.clear()
+        a2.clear()
+        a3.clear()
+        a0.clear()
+   
+        #Checking SMA short periods
+        if SMA_short_periods == 5:
+            mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
+            fivedayaverage(mydata)
+            SMA5 = mydata["5daySMA"]
+            SMA5 = SMA5[500:]
+            a.plot(SMA5, color = 'blue',lw = 2)
+        elif SMA_short_periods == 10:
+            mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            tendayaverage(mydata)
+            SMA10 = mydata["10daySMA"]
+            SMA10 = SMA10[500:]
+            a.plot(SMA10,color = 'blue')
+        elif SMA_short_periods == 50:
+            mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            fiftydayaverage(mydata)
+            SMA50 = mydata["50daySMA"]
+            SMA50 = SMA50[500:]
+            a.plot(SMA50,color = 'blue')
+        elif SMA_short_periods == 100:
+            mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            hundreddayaverage(mydata)
+            SMA100 = mydata["100daySMA"]
+            SMA100 = SMA100[500:]
+            a.plot(SMA100,color = 'blue')
+
+        #Checking SMA long periods
+        if SMA_long_periods == 5:
+            mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
+            fivedayaverage(mydata)
+            SMA5 = mydata["5daySMA"]
+            SMA5 = SMA5[500:]
+            a.plot(SMA5, color = 'black',)
+        elif SMA_long_periods == 10:
+            mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            tendayaverage(mydata)
+            SMA10 = mydata["10daySMA"]
+            SMA10 = SMA10[500:]
+            a.plot(SMA10,color = 'black')
+        elif SMA_long_periods == 50:
+            mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            fiftydayaverage(mydata)
+            SMA50 = mydata["50daySMA"]
+            SMA50 = SMA50[500:]
+            a.plot(SMA50,color = 'black',lw = 2)
+        elif SMA_long_periods == 100:
+            mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            hundreddayaverage(mydata)
+            SMA100 = mydata["100daySMA"]
+            SMA100 = SMA100[500:]
+            a.plot(SMA100,color = 'black')
+
+        #Checking EMA short periods
+        if EMA_short_periods == 5:
+            mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
+            EMA(mydata, 5, "5dayEMA")
+            EMA5 = mydata["5dayEMA"]
+            EMA5 = EMA5[500:]
+            a.plot(EMA5, color = 'red')
+        elif EMA_short_periods == 10:
+            mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 10, "10dayEMA")
+            EMA10 = mydata["10dayEMA"]
+            EMA10 = EMA10[500:]
+            a.plot(EMA10,color = 'red')
+        elif EMA_short_periods == 50:
+            mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata,50,"50dayEMA")
+            EMA50 = mydata["50dayEMA"]
+            EMA50 = EMA50[500:]
+            a.plot(EMA50,color = 'red')
+        elif EMA_short_periods == 100:
+            mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 100, "100dayEMA")
+            EMA100 = mydata["100dayEMA"]
+            EMA100 = EMA100[500:]
+            a.plot(EMA100,color = 'red')
+        elif EMA_short_periods == 250:
+            mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 250, "250dayEMA")
+            EMA250 = mydata["250dayEMA"]
+            EMA250 = EMA250[500:]
+            a.plot(EMA250,color = 'red')
+
+        #Checking EMA long periods
+        if EMA_long_periods == 5:
+            mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
+            EMA(mydata, 5, "5dayEMA")
+            EMA5 = mydata["5dayEMA"]
+            EMA5 = EMA5[500:]
+            a.plot(EMA5, color = 'purple',)
+        elif EMA_long_periods == 10:
+            mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 10, "10dayEMA")
+            EMA10 = mydata["10dayEMA"]
+            EMA10 = EMA10[500:]
+            a.plot(EMA10,color = 'purple')
+        elif EMA_long_periods == 50:
+            mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata,50,"50dayEMA")
+            EMA50 = mydata["50dayEMA"]
+            EMA50 = EMA50[500:]
+            a.plot(EMA50,color = 'purple')
+        elif EMA_long_periods == 100:
+            mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 100, "100dayEMA")
+            EMA100 = mydata["100dayEMA"]
+            EMA100 = EMA100[500:]
+            a.plot(EMA100,color = 'purple')
+        elif EMA_long_periods == 250:
+            mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+            EMA(mydata, 250, "250dayEMA")
+            EMA250 = mydata["250dayEMA"]
+            EMA250 = EMA250[500:]
+            a.plot(EMA250,color = 'purple')
+
+
+
+        aa = a.twinx()
+        max = volume.max()
+        aa.set_ylim(0, 5*max)
+        aa.set_yticks([])
+        aa.fill_between(volume.index, volume, 0, facecolor = 'black', edgecolor='blue')
+
+        MACD(mydata)
+        a3.plot(mydata["MACD"][500:], color = 'black')
+        a3.plot(mydata["signal"][500:], color = 'red')
+
+
+        RSICalc(mydata)
+        RSI = mydata["RSI"]
+        RSI = RSI[500:]
+        a0.set_ylim(0, 100)
+        a0.plot(RSI, color = 'brown')
+        a0.axhline(70, color='black')
+        a0.axhline(30, color= 'black')
+        a0.text(0.6, 0.9, '>70 = overbought', va='top', transform=a0.transAxes, fontsize=9)
+        a0.text(0.6, 0.1, '<30 = oversold', transform=a0.transAxes, fontsize=9)
+
+        a2.plot(diff, color = 'black')
+        a2.fill_between(diff.index, diff, 0,  facecolor='green', edgecolor='black')
+
+        title = "Yahoo inc. Current High: " + str(high[-1]) + " Current Low: " + str(low[-1])
+        a.set_title(title)
+        a0_title = "Current Relative Strength Index is: " + str(RSI[-1])
+        a0.set_title(a0_title)
+        a2.set_title("Difference between High and Low")
+        a3.set_title("MACD")
+        a.legend(loc=0)
+        a0.legend(loc=0)
+        a3.legend(loc=0)
 
     elif stock == "FACEBOOK":
-        a = plt.subplot2grid((6,4), (1,0), rowspan=4, colspan=4)
-        a2 = plt.subplot2grid((6,4), (5,0), sharex=a, rowspan=1, colspan=4)
-        a0 = plt.subplot2grid((6,4), (0,0), sharex=a, rowspan=1, colspan=4)
 
-        mydata = Quandl.get("GOOG/NASDAQ_FB")
+        a = plt.subplot2grid((16,4), (6,0), rowspan=7, colspan=4)
+        a2 = plt.subplot2grid((16,4), (14,0), sharex=a, rowspan=2, colspan=4)
+        a0 = plt.subplot2grid((16,4), (0,0), sharex=a, rowspan=2, colspan=4)
+        a3 = plt.subplot2grid((16,4), (3,0), sharex=a, rowspan=2, colspan=4) #plotting MACD
+
+        mydata =  Quandl.get("GOOG/NASDAQ_FB")
+        sLength = len(mydata["Open"])
+        mydata["RSI"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+        
+
         high = mydata["High"]
         low = mydata["Low"]
+        volume = (mydata["Volume"] * mydata["Close"]) / 1e6 #Dollar Volume in Millions
+        volume = volume[500:]
+        high = high[500:]
+        low = low[500:]
         diff = mydata["High"] - mydata["Low"]
-
-        sLength = len(mydata["Open"])
+        diff = diff[500:]
 
         a.clear()
+        a2.clear()
+        a3.clear()
+        a0.clear()
    
         #Checking SMA short periods
         if SMA_short_periods == 5:
             mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             fivedayaverage(mydata)
             SMA5 = mydata["5daySMA"]
-            a.plot(SMA5, color = 'blue')
+            SMA5 = SMA5[500:]
+            a.plot(SMA5, color = 'blue',lw = 2)
         elif SMA_short_periods == 10:
             mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             tendayaverage(mydata)
             SMA10 = mydata["10daySMA"]
+            SMA10 = SMA10[500:]
             a.plot(SMA10,color = 'blue')
         elif SMA_short_periods == 50:
             mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             fiftydayaverage(mydata)
             SMA50 = mydata["50daySMA"]
+            SMA50 = SMA50[500:]
             a.plot(SMA50,color = 'blue')
         elif SMA_short_periods == 100:
             mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             hundreddayaverage(mydata)
             SMA100 = mydata["100daySMA"]
+            SMA100 = SMA100[500:]
             a.plot(SMA100,color = 'blue')
 
         #Checking SMA long periods
@@ -587,21 +961,25 @@ def animate(i):
             mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             fivedayaverage(mydata)
             SMA5 = mydata["5daySMA"]
+            SMA5 = SMA5[500:]
             a.plot(SMA5, color = 'black',)
         elif SMA_long_periods == 10:
             mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             tendayaverage(mydata)
             SMA10 = mydata["10daySMA"]
+            SMA10 = SMA10[500:]
             a.plot(SMA10,color = 'black')
         elif SMA_long_periods == 50:
             mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             fiftydayaverage(mydata)
             SMA50 = mydata["50daySMA"]
-            a.plot(SMA50,color = 'black')
+            SMA50 = SMA50[500:]
+            a.plot(SMA50,color = 'black',lw = 2)
         elif SMA_long_periods == 100:
             mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             hundreddayaverage(mydata)
             SMA100 = mydata["100daySMA"]
+            SMA100 = SMA100[500:]
             a.plot(SMA100,color = 'black')
 
         #Checking EMA short periods
@@ -609,26 +987,31 @@ def animate(i):
             mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             EMA(mydata, 5, "5dayEMA")
             EMA5 = mydata["5dayEMA"]
+            EMA5 = EMA5[500:]
             a.plot(EMA5, color = 'red')
         elif EMA_short_periods == 10:
             mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 10, "10dayEMA")
             EMA10 = mydata["10dayEMA"]
+            EMA10 = EMA10[500:]
             a.plot(EMA10,color = 'red')
         elif EMA_short_periods == 50:
             mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata,50,"50dayEMA")
             EMA50 = mydata["50dayEMA"]
+            EMA50 = EMA50[500:]
             a.plot(EMA50,color = 'red')
         elif EMA_short_periods == 100:
             mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 100, "100dayEMA")
             EMA100 = mydata["100dayEMA"]
+            EMA100 = EMA100[500:]
             a.plot(EMA100,color = 'red')
         elif EMA_short_periods == 250:
             mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 250, "250dayEMA")
             EMA250 = mydata["250dayEMA"]
+            EMA250 = EMA250[500:]
             a.plot(EMA250,color = 'red')
 
         #Checking EMA long periods
@@ -636,190 +1019,120 @@ def animate(i):
             mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             EMA(mydata, 5, "5dayEMA")
             EMA5 = mydata["5dayEMA"]
+            EMA5 = EMA5[500:]
             a.plot(EMA5, color = 'purple',)
         elif EMA_long_periods == 10:
             mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 10, "10dayEMA")
             EMA10 = mydata["10dayEMA"]
+            EMA10 = EMA10[500:]
             a.plot(EMA10,color = 'purple')
         elif EMA_long_periods == 50:
             mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata,50,"50dayEMA")
             EMA50 = mydata["50dayEMA"]
+            EMA50 = EMA50[500:]
             a.plot(EMA50,color = 'purple')
         elif EMA_long_periods == 100:
             mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 100, "100dayEMA")
             EMA100 = mydata["100dayEMA"]
+            EMA100 = EMA100[500:]
             a.plot(EMA100,color = 'purple')
         elif EMA_long_periods == 250:
             mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 250, "250dayEMA")
             EMA250 = mydata["250dayEMA"]
+            EMA250 = EMA250[500:]
             a.plot(EMA250,color = 'purple')
 
-        a2.plot(diff, color = 'black')
 
-        title = "FACEBOOK Highs, and Lows data graph. Current High:" + str(high[-1]) + "Current Low:" + str(low[-1])
-        a0.set_title(title)
-        a2.set_title("Difference between High and Low")
-        a.legend(loc=0)
-        a0.legend(loc=0)
-       
-    elif stock == "YAHOO":
-        a = plt.subplot2grid((6,4), (1,0), rowspan=4, colspan=4)
-        a2 = plt.subplot2grid((6,4), (5,0), sharex=a, rowspan=1, colspan=4)
-        a0 = plt.subplot2grid((6,4), (0,0), sharex=a, rowspan=1, colspan=4)
 
-        mydata = Quandl.get("YAHOO/YHOO")
-        high = mydata["High"]
-        low = mydata["Low"]
-        diff = mydata["High"] - mydata["Low"]
+        aa = a.twinx()
+        max = volume.max()
+        aa.set_ylim(0, 5*max)
+        aa.set_yticks([])
+        aa.fill_between(volume.index, volume, 0, facecolor = 'black', edgecolor='blue')
 
-        sLength = len(mydata["Open"])
+        MACD(mydata)
+        a3.plot(mydata["MACD"][500:], color = 'black')
+        a3.plot(mydata["signal"][500:], color = 'red')
 
-        a.clear()
-   
-        #Checking SMA short periods
-        if SMA_short_periods == 5:
-            mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
-            fivedayaverage(mydata)
-            SMA5 = mydata["5daySMA"]
-            a.plot(SMA5, color = 'blue')
-        elif SMA_short_periods == 10:
-            mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
-            tendayaverage(mydata)
-            SMA10 = mydata["10daySMA"]
-            a.plot(SMA10,color = 'blue')
-        elif SMA_short_periods == 50:
-            mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
-            fiftydayaverage(mydata)
-            SMA50 = mydata["50daySMA"]
-            a.plot(SMA50,color = 'blue')
-        elif SMA_short_periods == 100:
-            mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
-            hundreddayaverage(mydata)
-            SMA100 = mydata["100daySMA"]
-            a.plot(SMA100,color = 'blue')
 
-        #Checking SMA long periods
-        if SMA_long_periods == 5:
-            mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
-            fivedayaverage(mydata)
-            SMA5 = mydata["5daySMA"]
-            a.plot(SMA5, color = 'black',)
-        elif SMA_long_periods == 10:
-            mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
-            tendayaverage(mydata)
-            SMA10 = mydata["10daySMA"]
-            a.plot(SMA10,color = 'black')
-        elif SMA_long_periods == 50:
-            mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
-            fiftydayaverage(mydata)
-            SMA50 = mydata["50daySMA"]
-            a.plot(SMA50,color = 'black')
-        elif SMA_long_periods == 100:
-            mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
-            hundreddayaverage(mydata)
-            SMA100 = mydata["100daySMA"]
-            a.plot(SMA100,color = 'black')
-
-        #Checking EMA short periods
-        if EMA_short_periods == 5:
-            mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
-            EMA(mydata, 5, "5dayEMA")
-            EMA5 = mydata["5dayEMA"]
-            a.plot(EMA5, color = 'red')
-        elif EMA_short_periods == 10:
-            mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
-            EMA(mydata, 10, "10dayEMA")
-            EMA10 = mydata["10dayEMA"]
-            a.plot(EMA10,color = 'red')
-        elif EMA_short_periods == 50:
-            mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
-            EMA(mydata,50,"50dayEMA")
-            EMA50 = mydata["50dayEMA"]
-            a.plot(EMA50,color = 'red')
-        elif EMA_short_periods == 100:
-            mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
-            EMA(mydata, 100, "100dayEMA")
-            EMA100 = mydata["100dayEMA"]
-            a.plot(EMA100,color = 'red')
-        elif EMA_short_periods == 250:
-            mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
-            EMA(mydata, 250, "250dayEMA")
-            EMA250 = mydata["250dayEMA"]
-            a.plot(EMA250,color = 'red')
-
-        #Checking EMA long periods
-        if EMA_long_periods == 5:
-            mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
-            EMA(mydata, 5, "5dayEMA")
-            EMA5 = mydata["5dayEMA"]
-            a.plot(EMA5, color = 'purple',)
-        elif EMA_long_periods == 10:
-            mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
-            EMA(mydata, 10, "10dayEMA")
-            EMA10 = mydata["10dayEMA"]
-            a.plot(EMA10,color = 'purple')
-        elif EMA_long_periods == 50:
-            mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
-            EMA(mydata,50,"50dayEMA")
-            EMA50 = mydata["50dayEMA"]
-            a.plot(EMA50,color = 'purple')
-        elif EMA_long_periods == 100:
-            mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
-            EMA(mydata, 100, "100dayEMA")
-            EMA100 = mydata["100dayEMA"]
-            a.plot(EMA100,color = 'purple')
-        elif EMA_long_periods == 250:
-            mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
-            EMA(mydata, 250, "250dayEMA")
-            EMA250 = mydata["250dayEMA"]
-            a.plot(EMA250,color = 'purple')
+        RSICalc(mydata)
+        RSI = mydata["RSI"]
+        RSI = RSI[500:]
+        a0.set_ylim(0, 100)
+        a0.plot(RSI, color = 'brown')
+        a0.axhline(70, color='black')
+        a0.axhline(30, color= 'black')
+        a0.text(0.6, 0.9, '>70 = overbought', va='top', transform=a0.transAxes, fontsize=9)
+        a0.text(0.6, 0.1, '<30 = oversold', transform=a0.transAxes, fontsize=9)
 
         a2.plot(diff, color = 'black')
+        a2.fill_between(diff.index, diff, 0,  facecolor='green', edgecolor='black')
 
-        title = "YAHOO Highs, and Lows data graph. Current High:" + str(high[-1]) + "Current Low:" + str(low[-1])
-        a0.set_title(title)
+        title = "Facebook inc. Current High: " + str(high[-1]) + " Current Low: " + str(low[-1])
+        a.set_title(title)
+        a0_title = "Current Relative Strength Index is: " + str(RSI[-1])
+        a0.set_title(a0_title)
         a2.set_title("Difference between High and Low")
+        a3.set_title("MACD")
         a.legend(loc=0)
         a0.legend(loc=0)
-       
+        a3.legend(loc=0)
+
+
     elif stock == "APPLE":
-        a = plt.subplot2grid((6,4), (1,0), rowspan=4, colspan=4)
-        a2 = plt.subplot2grid((6,4), (5,0), sharex=a, rowspan=1, colspan=4)
-        a0 = plt.subplot2grid((6,4), (0,0), sharex=a, rowspan=1, colspan=4)
 
-        mydata = Quandl.get("GOOG/NASDAQ_AAPL")
+        a = plt.subplot2grid((16,4), (6,0), rowspan=7, colspan=4)
+        a2 = plt.subplot2grid((16,4), (14,0), sharex=a, rowspan=2, colspan=4)
+        a0 = plt.subplot2grid((16,4), (0,0), sharex=a, rowspan=2, colspan=4)
+        a3 = plt.subplot2grid((16,4), (3,0), sharex=a, rowspan=2, colspan=4) #plotting MACD
+
+        mydata =  Quandl.get("GOOG/NASDAQ_AAPL")
+        sLength = len(mydata["Open"])
+        mydata["RSI"] = pd.Series(np.random.randn(sLength), index=mydata.index)
+        
+
         high = mydata["High"]
         low = mydata["Low"]
+        volume = (mydata["Volume"] * mydata["Close"]) / 1e6 #Dollar Volume in Millions
+        volume = volume[2500:]
+        high = high[2500:]
+        low = low[2500:]
         diff = mydata["High"] - mydata["Low"]
-
-        sLength = len(mydata["Open"])
+        diff = diff[2500:]
 
         a.clear()
+        a2.clear()
+        a3.clear()
+        a0.clear()
    
         #Checking SMA short periods
         if SMA_short_periods == 5:
             mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             fivedayaverage(mydata)
             SMA5 = mydata["5daySMA"]
-            a.plot(SMA5, color = 'blue')
+            SMA5 = SMA5[2500:]
+            a.plot(SMA5, color = 'blue',lw = 2)
         elif SMA_short_periods == 10:
             mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             tendayaverage(mydata)
             SMA10 = mydata["10daySMA"]
+            SMA10 = SMA10[2500:]
             a.plot(SMA10,color = 'blue')
         elif SMA_short_periods == 50:
             mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             fiftydayaverage(mydata)
             SMA50 = mydata["50daySMA"]
+            SMA50 = SMA50[2500:]
             a.plot(SMA50,color = 'blue')
         elif SMA_short_periods == 100:
             mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             hundreddayaverage(mydata)
             SMA100 = mydata["100daySMA"]
+            SMA100 = SMA100[2500:]
             a.plot(SMA100,color = 'blue')
 
         #Checking SMA long periods
@@ -827,21 +1140,25 @@ def animate(i):
             mydata["5daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             fivedayaverage(mydata)
             SMA5 = mydata["5daySMA"]
+            SMA5 = SMA5[2500:]
             a.plot(SMA5, color = 'black',)
         elif SMA_long_periods == 10:
             mydata["10daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             tendayaverage(mydata)
             SMA10 = mydata["10daySMA"]
+            SMA10 = SMA10[2500:]
             a.plot(SMA10,color = 'black')
         elif SMA_long_periods == 50:
             mydata["50daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             fiftydayaverage(mydata)
             SMA50 = mydata["50daySMA"]
-            a.plot(SMA50,color = 'black')
+            SMA50 = SMA50[2500:]
+            a.plot(SMA50,color = 'black',lw = 2)
         elif SMA_long_periods == 100:
             mydata["100daySMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             hundreddayaverage(mydata)
             SMA100 = mydata["100daySMA"]
+            SMA100 = SMA100[2500:]
             a.plot(SMA100,color = 'black')
 
         #Checking EMA short periods
@@ -849,26 +1166,31 @@ def animate(i):
             mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             EMA(mydata, 5, "5dayEMA")
             EMA5 = mydata["5dayEMA"]
+            EMA5 = EMA5[2500:]
             a.plot(EMA5, color = 'red')
         elif EMA_short_periods == 10:
             mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 10, "10dayEMA")
             EMA10 = mydata["10dayEMA"]
+            EMA10 = EMA10[2500:]
             a.plot(EMA10,color = 'red')
         elif EMA_short_periods == 50:
             mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata,50,"50dayEMA")
             EMA50 = mydata["50dayEMA"]
+            EMA50 = EMA50[2500:]
             a.plot(EMA50,color = 'red')
         elif EMA_short_periods == 100:
             mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 100, "100dayEMA")
             EMA100 = mydata["100dayEMA"]
+            EMA100 = EMA100[2500:]
             a.plot(EMA100,color = 'red')
         elif EMA_short_periods == 250:
             mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 250, "250dayEMA")
             EMA250 = mydata["250dayEMA"]
+            EMA250 = EMA250[2500:]
             a.plot(EMA250,color = 'red')
 
         #Checking EMA long periods
@@ -876,35 +1198,69 @@ def animate(i):
             mydata["5dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index) #5 day index
             EMA(mydata, 5, "5dayEMA")
             EMA5 = mydata["5dayEMA"]
+            EMA5 = EMA5[2500:]
             a.plot(EMA5, color = 'purple',)
         elif EMA_long_periods == 10:
             mydata["10dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 10, "10dayEMA")
             EMA10 = mydata["10dayEMA"]
+            EMA10 = EMA10[2500:]
             a.plot(EMA10,color = 'purple')
         elif EMA_long_periods == 50:
             mydata["50dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata,50,"50dayEMA")
             EMA50 = mydata["50dayEMA"]
+            EMA50 = EMA50[2500:]
             a.plot(EMA50,color = 'purple')
         elif EMA_long_periods == 100:
             mydata["100dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 100, "100dayEMA")
             EMA100 = mydata["100dayEMA"]
+            EMA100 = EMA100[2500:]
             a.plot(EMA100,color = 'purple')
         elif EMA_long_periods == 250:
             mydata["250dayEMA"] = pd.Series(np.random.randn(sLength), index=mydata.index)
             EMA(mydata, 250, "250dayEMA")
             EMA250 = mydata["250dayEMA"]
+            EMA250 = EMA250[2500:]
             a.plot(EMA250,color = 'purple')
 
-        a2.plot(diff, color = 'black')
 
-        title = "APPLE Highs, and Lows data graph. Current High:" + str(high[-1]) + "Current Low:" + str(low[-1])
-        a0.set_title(title)
+
+        aa = a.twinx()
+        max = volume.max()
+        aa.set_ylim(0, 5*max)
+        aa.set_yticks([])
+        aa.fill_between(volume.index, volume, 0, facecolor = 'black', edgecolor='blue')
+
+        MACD(mydata)
+        a3.plot(mydata["MACD"][2500:], color = 'black')
+        a3.plot(mydata["signal"][2500:], color = 'red')
+
+
+        RSICalc(mydata)
+        RSI = mydata["RSI"]
+        RSI = RSI[2500:]
+        a0.set_ylim(0, 100)
+        a0.plot(RSI, color = 'brown')
+        a0.axhline(70, color='black')
+        a0.axhline(30, color= 'black')
+        a0.text(0.6, 0.9, '>70 = overbought', va='top', transform=a0.transAxes, fontsize=9)
+        a0.text(0.6, 0.1, '<30 = oversold', transform=a0.transAxes, fontsize=9)
+
+        a2.plot(diff, color = 'black')
+        a2.fill_between(diff.index, diff, 0,  facecolor='green', edgecolor='black')
+
+        title = "Apple inc. Current High: " + str(high[-1]) + " Current Low: " + str(low[-1])
+        a.set_title(title)
+        a0_title = "Current Relative Strength Index is: " + str(RSI[-1])
+        a0.set_title(a0_title)
         a2.set_title("Difference between High and Low")
+        a3.set_title("MACD")
         a.legend(loc=0)
         a0.legend(loc=0)
+        a3.legend(loc=0)
+
         
 class MenuBarProgram(tk.Tk):
 
